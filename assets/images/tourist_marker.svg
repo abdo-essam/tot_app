@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <!-- Background circle -->
+    <circle cx="50" cy="50" r="45" fill="#FF6B4A" />
+
+    <!-- Person outline -->
+    <path
+        d="M50 35
+       A10 10 0 1 0 50 15
+       A10 10 0 0 0 50 35 Z
+       M50 45
+       C35 55, 40 75, 50 85
+       C60 75, 65 55, 50 45 Z"
+        fill="white"
+    />
+
+    <!-- Movement indicator -->
+    <circle cx="50" cy="50" r="40" fill="none" stroke="white" stroke-width="3" stroke-dasharray="10 10" opacity="0.6" />
+</svg>

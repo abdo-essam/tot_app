@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:tot_app/Frontend/styles/globals.dart' as globals;
 import 'package:dio/dio.dart';
 
-//const baseUrl = 'http://192.168.1.5:8080'; // Adjust the base URL according to your backend setup
 const baseUrl = 'http://192.168.1.5:8080';
 var token = '';
 
@@ -48,11 +47,10 @@ class _LoginPageState extends State<LoginPage> {
       if (response.statusCode == 200) {
         debugPrint("response : $response");
         globals.authToken = response.data['token'];
-        String userType =
-            response.data['user_type']; // Get user_type from response
+        String userType = response.data['user_type']; // Get user_type from response
+        globals.userId = response.data['user_id'];
 
         if (userType == 'Tourist') {
-          //Navigator.of(context).pushReplacementNamed('/dashboard');
           Navigator.of(context).pushReplacementNamed('/addtrip');
         } else if (userType == 'Tour Guide') {
           Navigator.of(context).pushReplacementNamed('/dashboard');

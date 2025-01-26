@@ -64,6 +64,7 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute(builder: (context) => AddTrip());
           case '/trackallow':
             return MaterialPageRoute(builder: (context) => Allowtracking());
+
           default:
             return null;
         }

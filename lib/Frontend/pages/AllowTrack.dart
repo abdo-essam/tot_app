@@ -1,19 +1,32 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:location/location.dart';
 import 'package:tot_app/Frontend/styles/globals.dart' as globals;
 import 'package:dio/dio.dart';
 
 class Allowtracking extends StatefulWidget {
+  final String? tourGuideId; // Make parameters optional
+  final String? tripId;
+
+  const Allowtracking({
+    super.key,
+    this.tourGuideId,
+    this.tripId,
+  });
+
   @override
   _AllowtrackingState createState() => _AllowtrackingState();
 }
 
 class _AllowtrackingState extends State<Allowtracking> {
-  Dio _dio = Dio();
-  Location _location = Location();
+  final Dio _dio = Dio();
+  final Location _location = Location();
   bool _locationGranted = false;
   String _statusMessage = "Grant location access to begin.";
   bool _isUpdatingLocation = false;
+  Timer? _locationTimer;
 
   @override
   void initState() {
@@ -21,12 +34,17 @@ class _AllowtrackingState extends State<Allowtracking> {
     _requestLocationAccess();
   }
 
-  // Request permission and enable background location tracking
+  @override
+  void dispose() {
+    _locationTimer?.cancel(); // Cancel the timer when the widget is disposed
+    super.dispose();
+  }
+
+// Request permission and enable background location tracking
   Future<void> _requestLocationAccess() async {
     bool serviceEnabled;
     PermissionStatus permissionGranted;
-
-    // Check if location services are enabled
+// Check if location services are enabled
     serviceEnabled = await _location.serviceEnabled();
     if (!serviceEnabled) {
       serviceEnabled = await _location.requestService();
@@ -38,7 +56,7 @@ class _AllowtrackingState extends State<Allowtracking> {
       }
     }
 
-    // Check and request permission
+// Check and request permission
     permissionGranted = await _location.hasPermission();
     if (permissionGranted == PermissionStatus.denied) {
       permissionGranted = await _location.requestPermission();
@@ -55,11 +73,18 @@ class _AllowtrackingState extends State<Allowtracking> {
       _statusMessage = "Location access granted!";
     });
 
-    // Start tracking the location and update the backend
+// Configure location settings for real-time updates
+    await _location.changeSettings(
+      accuracy: LocationAccuracy.high,
+      interval: 1000, // Update every 1 second
+      distanceFilter: 0, // No minimum distance required for updates
+    );
+
+// Start tracking the location and update the backend
     _startLocationTracking();
   }
 
-  // Track location in real-time and send updates to the backend
+// Track location in real-time and send updates to the backend
   Future<void> _startLocationTracking() async {
     _location.onLocationChanged.listen((LocationData currentLocation) async {
       if (!_isUpdatingLocation) {
@@ -74,39 +99,49 @@ class _AllowtrackingState extends State<Allowtracking> {
     });
   }
 
-  // Send the location to the backend
+
+// Send the location to the backend
   Future<void> _updateLocation(double? latitude, double? longitude) async {
     if (latitude != null && longitude != null) {
       try {
-        // Replace with your actual token
-        String token = globals.authToken;
+        if (kDebugMode) {
+          print('Sending location update: lat=$latitude, lng=$longitude');
+        }
+        setState(() {
+          _isUpdatingLocation = true;
+        });
 
         final response = await _dio.post(
-          'http://192.168.1.5:8080/api/update-location', // Update with your API URL
+          '${globals.apiUrl}/api/update-location',
           data: {
             'latitude': latitude,
             'longitude': longitude,
           },
           options: Options(
             headers: {
-              'Authorization': 'Bearer $token',
+              'Authorization': 'Bearer ${globals.authToken}',
+              'Content-Type': 'application/json',
             },
           ),
         );
 
         if (response.statusCode == 200) {
-          setState(() {
-            _statusMessage = "Location updated successfully!";
-          });
+          if (kDebugMode) {
+            print('Location updated successfully: ${response.data}');
+          }
         } else {
-          setState(() {
-            _statusMessage = "Failed to update location!";
-          });
+          if (kDebugMode) {
+            print('Failed to update location: ${response.statusCode}');
+          }
         }
       } catch (e) {
-        setState(() {
-          _statusMessage = "Error sending location: $e";
-        });
+        print('Error updating location: $e');
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isUpdatingLocation = false;
+          });
+        }
       }
     }
   }
@@ -115,7 +150,7 @@ class _AllowtrackingState extends State<Allowtracking> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("User - Location Tracking"),
+        title: const Text("User - Location Tracking"),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -123,16 +158,16 @@ class _AllowtrackingState extends State<Allowtracking> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (_isUpdatingLocation)
-              CircularProgressIndicator()
+              const CircularProgressIndicator()
             else
               Text(
                 _statusMessage,
-                style: TextStyle(fontSize: 18, color: Colors.blue),
+                style: const TextStyle(fontSize: 18, color: Colors.blue),
                 textAlign: TextAlign.center,
               ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             if (_locationGranted)
-              Text(
+              const Text(
                 "Your location is being tracked and sent to the server.",
                 style: TextStyle(fontSize: 16, color: Colors.green),
                 textAlign: TextAlign.center,

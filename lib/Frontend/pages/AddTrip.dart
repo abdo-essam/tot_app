@@ -1,17 +1,97 @@
+import 'package:dio/dio.dart' show Dio, Options;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:tot_app/Frontend/pages/summary.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:tot_app/Frontend/styles/globals.dart' as globals;
 
 class AddTrip extends StatefulWidget {
-  const AddTrip({Key? key}) : super(key: key);
+  const AddTrip({super.key});
 
   @override
   State<AddTrip> createState() => _AddTripState();
 }
 
 class _AddTripState extends State<AddTrip> {
+
+  final Dio _dio = Dio();
+  List<Map<String, dynamic>> tourGuides = []; // Initialize empty tour guides list
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchTourGuides(); // Fetch tour guides when widget initializes
+  }
+
+  Future<void> fetchTourGuides() async {
+    try {
+      final response = await _dio.get(
+        '${globals.apiUrl}/api/tour-guides',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer ${globals.authToken}',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        List<Map<String, dynamic>> guides = [];
+        if (response.data is List) {
+          guides = (response.data as List).map((guide) => {
+            'id': guide['id'],
+            'text': guide['name'],
+            'isSelected': false,
+          }).toList();
+        }
+
+        setState(() {
+          tourGuides = guides;
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error fetching tour guides: $e');
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  Widget buildTourGuideCard(Map<String, dynamic> guide, int index) {
+    return InkWell(
+      onTap: () => _handleItemSelection(tourGuides, index),
+      child: Container(
+        width: 150,
+        height: 100, // Reduced height since we have less content
+        margin: const EdgeInsets.all(8.0),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: guide['isSelected'] == true ? const Color(0xFFD28A22) : Colors.grey,
+            width: guide['isSelected'] == true ? 2 : 1,
+          ),
+        ),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              guide['text'],
+              style: TextStyle(
+                fontWeight: guide['isSelected'] == true
+                    ? FontWeight.bold
+                    : FontWeight.normal,
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+
   List<Map<String, dynamic>> places = [
     {
       'imageUrl':
@@ -78,7 +158,7 @@ class _AddTripState extends State<AddTrip> {
     },
     // Add more items here
   ];
-  List<Map<String, dynamic>> tourGuide = [
+  /*List<Map<String, dynamic>> tourGuide = [
     {
       'imageUrl':
           "https://img.freepik.com/premium-vector/man-avatar-profile-picture-isolated-background-avatar-profile-picture-man_1293239-4866.jpg",
@@ -104,23 +184,25 @@ class _AddTripState extends State<AddTrip> {
           "https://img.freepik.com/premium-vector/man-avatar-profile-picture-isolated-background-avatar-profile-picture-man_1293239-4866.jpg",
       'text': 'Eviro Adham',
     },
-  ];
+  ];*/
   void _handleItemSelection(List<Map<String, dynamic>> list, int index) {
     setState(() {
       for (int i = 0; i < list.length; i++) {
-        list[i]['isSelected'] = false; // Deselect all items
+        list[i]['isSelected'] = false;
       }
       if (index >= 0 && index < list.length) {
-        list[index]['isSelected'] = true; // Select the clicked item
+        list[index]['isSelected'] = true;
       }
 
-      // Update selected items based on category
-      if (list == places) {
+      if (list == tourGuides) {
+        _selectedTourGuide = {
+          'id': list[index]['id'],
+          'text': list[index]['text'],
+        };
+      } else if (list == places) {
         _selectedPlace = list[index];
       } else if (list == resturants) {
         _selectedRestaurant = list[index];
-      } else if (list == tourGuide) {
-        _selectedTourGuide = list[index];
       }
     });
   }
@@ -163,6 +245,25 @@ class _AddTripState extends State<AddTrip> {
     }
   }
 
+  Widget buildTourGuidesSection() {
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (tourGuides.isEmpty) {
+      return const Center(child: Text('No tour guides available'));
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: tourGuides.asMap().entries.map((entry) {
+          return buildTourGuideCard(entry.value, entry.key);
+        }).toList(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -176,13 +277,13 @@ class _AddTripState extends State<AddTrip> {
             fontSize: 25,
           ),
         ),
-        backgroundColor: Color(0xFFD28A22),
+        backgroundColor: const Color(0xFFD28A22),
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(5.0),
+            const Padding(
+              padding: EdgeInsets.all(5.0),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -209,7 +310,7 @@ class _AddTripState extends State<AddTrip> {
                       ),
                       child: Column(
                         children: [
-                          SizedBox(height: 5),
+                          const SizedBox(height: 5),
                           Image.network(
                             item['imageUrl'],
                             width: 140,
@@ -225,8 +326,8 @@ class _AddTripState extends State<AddTrip> {
                 }).toList(),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(5.0),
+            const Padding(
+              padding: EdgeInsets.all(5.0),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -253,7 +354,7 @@ class _AddTripState extends State<AddTrip> {
                       ),
                       child: Column(
                         children: [
-                          SizedBox(
+                          const SizedBox(
                             height: 5,
                           ),
                           Image.network(
@@ -271,8 +372,8 @@ class _AddTripState extends State<AddTrip> {
                 }).toList(),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(5.0),
+            const Padding(
+              padding: EdgeInsets.all(5.0),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -281,55 +382,20 @@ class _AddTripState extends State<AddTrip> {
                 ),
               ),
             ),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: tourGuide.asMap().entries.map((entry) {
-                  int index = entry.key;
-                  var item = entry.value;
-                  return InkWell(
-                    onTap: () => _handleItemSelection(tourGuide, index),
-                    child: Container(
-                      width: 150,
-                      height: 150,
-                      margin: const EdgeInsets.all(8.0),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.grey),
-                      ),
-                      child: Column(
-                        children: [
-                          SizedBox(
-                            height: 5,
-                          ),
-                          Image.network(
-                            item['imageUrl'],
-                            width: 140,
-                            height: 100,
-                            fit: BoxFit.cover,
-                          ),
-                          const SizedBox(height: 8.0),
-                          Text(item['text']),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
+            buildTourGuidesSection(),
             const SizedBox(height: 20), // Add some spacing
             GestureDetector(
               onTap: _toggleCalendarVisibility,
-              child: Row(
+              child: const Row(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Tour Date',
                     style:
                         TextStyle(fontWeight: FontWeight.bold, fontSize: 20.0),
                   ),
-                  const SizedBox(width: 20),
-                  const Icon(Icons.calendar_today),
+                  SizedBox(width: 20),
+                  Icon(Icons.calendar_today),
                 ],
               ),
             ),
@@ -353,7 +419,7 @@ class _AddTripState extends State<AddTrip> {
             const SizedBox(height: 10),
             Text(
               'Selected Date: ${DateFormat('yyyy-MM-dd').format(_selectedDay)}',
-              style: TextStyle(fontSize: 16.0),
+              style: const TextStyle(fontSize: 16.0),
             ),
             const SizedBox(height: 20), // Add some spacing
             Row(
@@ -382,7 +448,7 @@ class _AddTripState extends State<AddTrip> {
                 ),
               ],
             ),
-            SizedBox(
+            const SizedBox(
               height: 10,
             ),
             ElevatedButton(
@@ -396,36 +462,37 @@ class _AddTripState extends State<AddTrip> {
                     arguments: {
                       'selectedPlace': _selectedPlace!,
                       'selectedRestaurant': _selectedRestaurant!,
-                      'selectedTourGuide': _selectedTourGuide!,
+                      'selectedTourGuide': {
+                        'name': _selectedTourGuide!['text'],
+                        'id': _selectedTourGuide!['id'],
+                      },
                       'selectedDay': _selectedDay,
                       'numberOfTourists': _numberOfTourists,
                     },
                   );
                 } else {
-                  // Show a message or snackbar indicating that all categories must be selected
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content:
-                          Text('Please select one item from each category.'),
+                    const SnackBar(
+                      content: Text('Please select one item from each category.'),
                     ),
                   );
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFFD28A22),
+                backgroundColor: const Color(0xFFD28A22),
                 foregroundColor: Colors.black,
               ),
               child: const Text('Proceed'),
             ),
-            SizedBox(
+            const SizedBox(
               height: 20,
             )
           ],
         ),
       ),
       bottomNavigationBar: Container(
-        color: Color(0xFFD28A22),
-        padding: EdgeInsets.symmetric(vertical: 10),
+        color: const Color(0xFFD28A22),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
@@ -434,30 +501,30 @@ class _AddTripState extends State<AddTrip> {
                 // Handle Status button press
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFFFCFDFF),
+                backgroundColor: const Color(0xFFFCFDFF),
                 foregroundColor: Colors.black,
               ),
-              child: Icon(Icons.info),
+              child: const Icon(Icons.info),
             ),
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pushReplacementNamed('/summary');
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFFFCFDFF),
+                backgroundColor: const Color(0xFFFCFDFF),
                 foregroundColor: Colors.black,
               ),
-              child: Icon(Icons.flight),
+              child: const Icon(Icons.flight),
             ),
             ElevatedButton(
               onPressed: () {
                 // Handle Profile button press
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFFFCFDFF),
+                backgroundColor: const Color(0xFFFCFDFF),
                 foregroundColor: Colors.black,
               ),
-              child: Icon(Icons.face),
+              child: const Icon(Icons.face),
             ),
           ],
         ),

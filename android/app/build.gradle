@@ -31,8 +31,12 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
+        coreLibraryDesugaringEnabled true
     }
-
+    dependencies {
+        // Add this line
+        coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
+    }
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_1_8
     }
@@ -42,7 +46,8 @@ android {
         applicationId = "com.example.tot_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
-        minSdk = flutter.minSdkVersion
+        multiDexEnabled true
+        minSdkVersion 21 // Ensure this is 21 or higher
         targetSdk = flutter.targetSdkVersion
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
