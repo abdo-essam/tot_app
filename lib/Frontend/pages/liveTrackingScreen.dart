@@ -23,17 +23,68 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
   final Location _location = Location();
   final Dio _dio = Dio();
   GoogleMapController? _mapController;
-  LatLng _currentPosition = const LatLng(30.0444, 31.2357); // Default to Cairo
+  LatLng _currentPosition = const LatLng(30.0444, 31.2357);
   bool _isLoading = true;
   Set<Marker> _markers = {};
   StreamSubscription<LocationData>? _locationSubscription;
   Timer? _locationTimer;
+  Timer? _fetchLocationTimer;
+  bool _isTourGuide = true; // Assuming the current user is the tour guide
 
   @override
   void initState() {
     super.initState();
     print('Initializing LiveTrackingScreen...');
     _initializeLocation();
+    _startFetchingTouristLocation();
+  }
+
+  void _startFetchingTouristLocation() {
+    // Fetch tourist location every 10 seconds
+    _fetchLocationTimer = Timer.periodic(
+      const Duration(seconds: 10),
+          (_) => _fetchTouristLocation(),
+    );
+  }
+
+  Future<void> _fetchTouristLocation() async {
+    try {
+      final response = await _dio.get(
+        '${globals.apiUrl}/api/get-location/${widget.touristId}',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer ${globals.authToken}',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data['success']) {
+        final locationData = response.data['data'];
+        final touristPosition = LatLng(
+          double.parse(locationData['latitude'].toString()),
+          double.parse(locationData['longitude'].toString()),
+        );
+
+        setState(() {
+          _markers = {
+            ..._markers,
+            Marker(
+              markerId: const MarkerId('touristLocation'),
+              position: touristPosition,
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+              infoWindow: const InfoWindow(title: 'Tourist Location'),
+            ),
+          };
+        });
+
+        // Optional: Center map on tourist location
+        _mapController?.animateCamera(
+          CameraUpdate.newLatLng(touristPosition),
+        );
+      }
+    } catch (e) {
+      print('Error fetching tourist location: $e');
+    }
   }
 
   Future<void> _initializeLocation() async {
@@ -47,7 +98,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
           return;
         }
       }
-      print('Permission status: $permissionStatus');
+
       print('Checking if location service is enabled...');
       bool serviceEnabled = await _location.serviceEnabled();
       if (!serviceEnabled) {
@@ -58,14 +109,12 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
         }
       }
 
-      print('Configuring location settings...');
       await _location.changeSettings(
         accuracy: LocationAccuracy.high,
         interval: 10000,
         distanceFilter: 10,
       );
 
-      print('Fetching initial location...');
       final LocationData locationData = await _location.getLocation();
 
       if (mounted) {
@@ -78,14 +127,14 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
             Marker(
               markerId: const MarkerId('currentLocation'),
               position: _currentPosition,
-              infoWindow: const InfoWindow(title: 'Current Location'),
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+              infoWindow: const InfoWindow(title: 'Your Location'),
             ),
           };
           _isLoading = false;
         });
       }
 
-      print('Starting location updates...');
       _startLocationUpdates();
     } catch (e) {
       print('Error initializing location: $e');
@@ -96,25 +145,22 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
   void _startLocationUpdates() {
     _locationSubscription?.cancel();
     _locationTimer?.cancel();
+
     _locationSubscription = _location.onLocationChanged.listen(
           (LocationData locationData) {
-        if (mounted && locationData.latitude != null &&
-            locationData.longitude != null) {
+        if (mounted && locationData.latitude != null && locationData.longitude != null) {
           setState(() {
-            _currentPosition =
-                LatLng(locationData.latitude!, locationData.longitude!);
+            _currentPosition = LatLng(locationData.latitude!, locationData.longitude!);
             _markers = {
+              ..._markers.where((m) => m.markerId.value != 'currentLocation'),
               Marker(
                 markerId: const MarkerId('currentLocation'),
                 position: _currentPosition,
-                infoWindow: const InfoWindow(title: 'Current Location'),
+                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+                infoWindow: const InfoWindow(title: 'Your Location'),
               ),
             };
           });
-
-          _mapController?.animateCamera(
-            CameraUpdate.newLatLng(_currentPosition),
-          );
         }
       },
       onError: (e) {
@@ -123,7 +169,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
     );
 
     _locationTimer = Timer.periodic(
-      const Duration(seconds: 10),
+      const Duration(seconds: 1),
           (_) => _updateServerLocation(),
     );
   }
@@ -143,7 +189,6 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
         ),
       );
 
-
       if (response.statusCode != 200) {
         print('Failed to update location on server');
       }
@@ -152,19 +197,11 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
     }
   }
 
-  void _showError(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Location Tracking'),
+        title: const Text('Live Tracking'),
         backgroundColor: const Color(0xFFD28A22),
       ),
       body: Stack(
@@ -196,14 +233,27 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
             ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _mapController?.animateCamera(
-            CameraUpdate.newLatLng(_currentPosition),
-          );
-        },
-        backgroundColor: const Color(0xFFD28A22),
-        child: const Icon(Icons.my_location),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            onPressed: _fetchTouristLocation,
+            backgroundColor: const Color(0xFFD28A22),
+            heroTag: 'refresh',
+            child: const Icon(Icons.refresh),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton(
+            onPressed: () {
+              _mapController?.animateCamera(
+                CameraUpdate.newLatLng(_currentPosition),
+              );
+            },
+            backgroundColor: const Color(0xFFD28A22),
+            heroTag: 'location',
+            child: const Icon(Icons.my_location),
+          ),
+        ],
       ),
     );
   }
@@ -212,7 +262,16 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
   void dispose() {
     _locationSubscription?.cancel();
     _locationTimer?.cancel();
+    _fetchLocationTimer?.cancel();
     _mapController?.dispose();
     super.dispose();
+  }
+
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
   }
 }
