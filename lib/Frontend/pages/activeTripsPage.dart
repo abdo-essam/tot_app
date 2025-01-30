@@ -119,6 +119,7 @@ class _ActiveTripsPageState extends State<ActiveTripsPage> {
                       MaterialPageRoute(
                         builder: (context) => LiveTrackingScreen(
                           touristId: trip['Tourist_id'].toString(),
+                          tourGuideId: trip['Admin_id'].toString(),
                           tripId: trip['trip_id'].toString(),
                         ),
                       ),
