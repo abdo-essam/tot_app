@@ -146,7 +146,7 @@ class _SummaryPageState extends State<SummaryPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => Allowtracking(tourGuideId:globals.guideId.toString() ,
+        builder: (context) => Allowtracking(tourGuideId:_tourGuideId ,
           tripId: _tripId!,
         ),
       ),

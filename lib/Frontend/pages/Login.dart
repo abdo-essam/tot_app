@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:tot_app/Frontend/styles/globals.dart' as globals;
 import 'package:dio/dio.dart';
 
-const baseUrl = 'http://192.168.1.5:8080';
 var token = '';
 
 class LoginPage extends StatefulWidget {
@@ -37,7 +36,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       Response response = await _dio.post(
-        '$baseUrl/api/login',
+        '${globals.apiUrl}/api/login',
         data: {
           'email': email,
           'password': password,

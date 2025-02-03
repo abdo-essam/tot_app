@@ -360,7 +360,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                       children: [
                         Icon(Icons.location_on, color: Colors.green),
                         SizedBox(width: 8),
-                        Text('Tour Guide'),
+                        Text('You'),
                       ],
                     ),
                     SizedBox(height: 8),

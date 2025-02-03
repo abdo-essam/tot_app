@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';  // Dio for HTTP requests
-
-//const baseUrl = 'http://192.168.1.5:8080';
-const baseUrl = 'http://192.168.1.5:8080';
+import 'package:tot_app/Frontend/styles/globals.dart' as globals;
 class SignUpPage extends StatefulWidget {
-  const SignUpPage({Key? key}) : super(key: key);
+  const SignUpPage({super.key});
 
   @override
   _SignUpPageState createState() => _SignUpPageState();
@@ -53,7 +51,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
       // Send POST request to the backend
       Response response = await _dio.post(
-        '$baseUrl/api/register',  // Replace with your actual API URL
+        '${globals.apiUrl}/api/register',  // Replace with your actual API URL
         data: data,
       );
 

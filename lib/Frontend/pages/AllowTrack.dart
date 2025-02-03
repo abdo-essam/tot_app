@@ -99,7 +99,7 @@ class _AllowtrackingState extends State<Allowtracking> {
       if (widget.tourGuideId != null) {
         _fetchGuideLocation();
         // Periodic guide location updates
-        Timer.periodic(const Duration(seconds: 3), (timer) {
+        Timer.periodic(const Duration(seconds: 1), (timer) {
           if (mounted) _fetchGuideLocation();
         });
       }
