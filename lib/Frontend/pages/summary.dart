@@ -2,12 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:tot_app/Frontend/pages/activeTripsPage.dart';
 import 'package:tot_app/Frontend/styles/globals.dart' as globals;
-
-import 'AllowTrack.dart';
 import 'liveTrackingScreen.dart';
-
 
 class SummaryPage extends StatefulWidget {
   final Map<String, dynamic> selectedPlace;
@@ -16,16 +12,14 @@ class SummaryPage extends StatefulWidget {
   final DateTime selectedDay;
   final int numberOfTourists;
 
-
-
   const SummaryPage({
-    Key? key,
+    super.key,
     required this.selectedPlace,
     required this.selectedRestaurant,
     required this.selectedTourGuide,
     required this.selectedDay,
     required this.numberOfTourists,
-  }) : super(key: key);
+  });
 
   @override
   State<SummaryPage> createState() => _SummaryPageState();
@@ -35,26 +29,33 @@ class _SummaryPageState extends State<SummaryPage> {
   bool _tripPaid = false;
   String? _tripId;
   String? _tourGuideId;
+  final Dio _dio = Dio();
+  bool _isLoading = false;
+
   @override
   void initState() {
     super.initState();
+    _initializeTourGuideId();
+  }
+
+  void _initializeTourGuideId() {
     _tourGuideId = widget.selectedTourGuide['id']?.toString();
     if (kDebugMode) {
-      print('Received Tour Guide Data: ${widget.selectedTourGuide}');
+      print('Tour Guide Data: ${widget.selectedTourGuide}');
       print('Tour Guide ID: $_tourGuideId');
     }
   }
 
-
-
   Future<bool> _createTrip() async {
-    try {
-      if (_tourGuideId == null) {
-        print('Error: Tour guide ID is null');
-        return false;
-      }
+    if (_tourGuideId == null) {
+      _showErrorSnackBar('Tour guide ID is missing');
+      return false;
+    }
 
-      final response = await Dio().post(
+    try {
+      setState(() => _isLoading = true);
+
+      final response = await _dio.post(
         '${globals.apiUrl}/api/create-trip',
         data: {
           'tourist_id': globals.userId,
@@ -70,86 +71,143 @@ class _SummaryPageState extends State<SummaryPage> {
         ),
       );
 
-      if (kDebugMode) {
-        print('Create trip response: ${response.data}');
-      }
-
       if (response.statusCode == 201) {
-        setState(() {
-          _tripId = response.data['data']['trip_id'].toString();
-        });
+        setState(() => _tripId = response.data['data']['trip_id'].toString());
         return true;
       }
+
+      _showErrorSnackBar('Failed to create trip');
       return false;
+
     } catch (e) {
-      print('Error creating trip: $e');
-      if (e is DioException) {
-        print('DioError details: ${e.response?.data}');
-      }
+      _handleError('Error creating trip', e);
       return false;
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
+  Future<void> _handlePayment() async {
+    if (_isLoading) return;
 
-  void _handlePayment() async {
     try {
-      // First create the trip
       bool tripCreated = await _createTrip();
+      if (!tripCreated) return;
 
-      if (!tripCreated) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to create trip'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        return;
-      }
+      // Simulate payment process here
+      setState(() => _tripPaid = true);
+      _showSuccessSnackBar('Payment successful');
 
-      // Simulate payment success
-      setState(() {
-        _tripPaid = true;
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Payment successful'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
     } catch (e) {
-      print('Payment error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Payment failed. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _handleError('Payment failed', e);
     }
   }
-
 
   void _enableLocationTracking() {
     if (_tripId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Trip ID not found')),
-      );
+      _showErrorSnackBar('Trip ID not found');
       return;
     }
 
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => Allowtracking(tourGuideId:_tourGuideId ,
-          tripId: _tripId!,
+        builder: (context) => LiveTrackingScreen(
+          touristId: globals.userId.toString(), // Current user's ID
+          tourGuideId: _tourGuideId ?? '', // Tour guide's ID
+          tripId: _tripId!, // Trip ID
         ),
       ),
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  void _showSuccessSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  void _handleError(String message, dynamic error) {
+    if (kDebugMode) {
+      print('$message: $error');
+      if (error is DioException) {
+        print('DioError details: ${error.response?.data}');
+      }
+    }
+    _showErrorSnackBar('$message. Please try again.');
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 16.0),
+        ),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 16.0),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18.0,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 5.0),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Column(
+      children: [
+        if (_isLoading)
+          const CircularProgressIndicator()
+        else ...[
+          ElevatedButton(
+            onPressed: _tripPaid ? null : _handlePayment,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD28A22),
+              foregroundColor: Colors.white,
+            ),
+            child: Text(_tripPaid ? 'Payment Complete' : 'Proceed to Payment'),
+          ),
+          if (_tripPaid)
+            ElevatedButton(
+              onPressed: _enableLocationTracking,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFD28A22),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Enable Location Tracking'),
+            ),
+        ],
+      ],
     );
   }
 
@@ -159,122 +217,38 @@ class _SummaryPageState extends State<SummaryPage> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Trip Summary'),
-        backgroundColor: Color(0xFFD28A22),
+        backgroundColor: const Color(0xFFD28A22),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Place
-            const Text(
-              'Selected Place:',
-              style: TextStyle(
-                fontSize: 18.0,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 5.0),
+            _buildSectionTitle('Selected Place:'),
             Text('${widget.selectedPlace['text']}'),
-
             const SizedBox(height: 15.0),
 
-            // Restaurant
-            const Text(
-              'Selected Restaurant:',
-              style: TextStyle(
-                fontSize: 18.0,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 5.0),
+            _buildSectionTitle('Selected Restaurant:'),
             Text('${widget.selectedRestaurant['text']}'),
-
             const SizedBox(height: 15.0),
 
-            // Tour Guide
-            const Text(
-              'Selected Tour Guide:',
-              style: TextStyle(
-                fontSize: 18.0,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 5.0),
+            _buildSectionTitle('Selected Tour Guide:'),
             Text('${widget.selectedTourGuide['name']}'),
-
             const SizedBox(height: 15.0),
 
-            // Details section
-            const Text(
-              'Trip Details:',
-              style: TextStyle(
-                fontSize: 18.0,
-                fontWeight: FontWeight.bold,
-              ),
+            _buildSectionTitle('Trip Details:'),
+            _buildDetailRow(
+              'Date:',
+              DateFormat('yyyy-MM-dd').format(widget.selectedDay),
             ),
             const SizedBox(height: 10.0),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Date:',
-                  style: TextStyle(
-                    fontSize: 16.0,
-                  ),
-                ),
-                Text(
-                  DateFormat('yyyy-MM-dd').format(widget.selectedDay),
-                  style: TextStyle(
-                    fontSize: 16.0,
-                  ),
-                ),
-              ],
+            _buildDetailRow(
+              'Number of Tourists:',
+              widget.numberOfTourists.toString(),
             ),
-            const SizedBox(height: 10.0),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Number of Tourists:',
-                  style: TextStyle(
-                    fontSize: 16.0,
-                  ),
-                ),
-                Text(
-                  '${widget.numberOfTourists}',
-                  style: TextStyle(
-                    fontSize: 16.0,
-                  ),
-                ),
-              ],
-            ),
-
             const SizedBox(height: 20.0),
 
-            Column(
-              children: [
-                Center(
-                  child: ElevatedButton(
-                    onPressed: _tripPaid ? null : _handlePayment,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFFD28A22),
-                      foregroundColor: Colors.white,
-                    ),
-                    child: Text(_tripPaid ? 'Payment Complete' : 'Proceed to Payment'),
-                  ),
-                ),
-                if (_tripPaid) // Add a variable to check if trip is paid
-                  ElevatedButton(
-                    onPressed: _enableLocationTracking,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFFD28A22),
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text('Enable Location Tracking'),
-                  ),
-              ],
-            ),
+            Center(child: _buildActionButtons()),
           ],
         ),
       ),
