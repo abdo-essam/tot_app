@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'payment.dart';  // Ensure this is the correct import path
 
 class TourGuidePage extends StatefulWidget {
   final List<String> selectedPlaces;

@@ -6,8 +6,7 @@ import 'package:tot_app/Frontend/styles/drawer.dart';
 import 'package:dio/dio.dart';
 import 'activeTripsPage.dart';
 
-const baseUrl = 'http://192.168.1.5:8080';
-
+/// Dashboard widget to display tour guide statistics and active trips
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
 
@@ -16,32 +15,37 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
-  int completedTrips = 0;
-  double totalRating = 0.0;
-  double totalIncome = 0.0;
-  List<Map<String, dynamic>> activeTrips = [];
-  bool isLoading = true;
-  bool hasError = false;
+  // Statistics variables
+  int completedTrips = 0;      // Number of completed trips
+  double totalRating = 0.0;    // Average rating
+  double totalIncome = 0.0;    // Total earnings
+  List<Map<String, dynamic>> activeTrips = []; // List of current active trips
+
+  // State management variables
+  bool isLoading = true;  // Loading state indicator
+  bool hasError = false;  // Error state indicator
 
   @override
   void initState() {
     super.initState();
     print('Dashboard: initState called');
+    // Fetch initial data
     fetchDashboardData();
     fetchActiveTrips();
   }
 
+  /// Fetches dashboard statistics from the server
   Future<void> fetchDashboardData() async {
     print('Dashboard: fetchDashboardData called');
     try {
       Dio dio = Dio();
       String token = globals.authToken;
 
-      // Log the token for debugging
+      // Debug logging
       print('Dashboard: Auth Token = $token');
-
-      // Make a GET request to your dashboard API
       print('Dashboard: Making GET request to $baseUrl/api/dashboard');
+
+      // Make API request
       Response response = await dio.get(
         '$baseUrl/api/dashboard',
         options: Options(
@@ -51,21 +55,21 @@ class _DashboardState extends State<Dashboard> {
         ),
       );
 
-      // Log the response for debugging
+      // Debug logging
       print('Dashboard: API Response Status Code = ${response.statusCode}');
       print('Dashboard: API Response Data = ${response.data}');
 
-      // Ensure the response has data and the expected fields
+      // Process response data
       if (response.data != null) {
         print('Dashboard: Data received successfully');
         setState(() {
+          // Update statistics
           completedTrips = response.data['total_orders'] ?? 0;
           totalRating = double.tryParse(response.data['average_rating'].toString()) ?? 0.0;
           totalIncome = double.tryParse(response.data['total_payments'].toString()) ?? 0.0;
         });
         print('Dashboard: Updated state with data');
       } else {
-        // Handle case where no data is returned
         print('Dashboard: No data returned from API');
         setState(() {
           hasError = true;
@@ -84,19 +88,20 @@ class _DashboardState extends State<Dashboard> {
     }
   }
 
+  /// Fetches active trips from the server
   Future<void> fetchActiveTrips() async {
     print('Dashboard: fetchActiveTrips called');
     try {
       Dio dio = Dio();
       String token = globals.authToken;
 
-      // Log the token for debugging
+      // Debug logging
       print('Dashboard: Auth Token = $token');
+      print('Dashboard: Making GET request to $baseUrl/api/active-trips/${globals.userId}');
 
-      // Make a GET request to fetch active trips
-      print('Dashboard: Making GET request to $baseUrl/api/active-trips/${globals.guideId}');
+      // Make API request
       Response response = await dio.get(
-        '$baseUrl/api/active-trips/${globals.userId}', // Assuming you have a global userId
+        '$baseUrl/api/active-trips/${globals.userId}',
         options: Options(
           headers: {
             'Authorization': 'Bearer $token',
@@ -104,10 +109,11 @@ class _DashboardState extends State<Dashboard> {
         ),
       );
 
-      // Log the response for debugging
+      // Debug logging
       print('Dashboard: Active Trips API Response Status Code = ${response.statusCode}');
       print('Dashboard: Active Trips API Response Data = ${response.data}');
 
+      // Process response data
       if (response.statusCode == 200 && response.data != null) {
         print('Dashboard: Active trips data received successfully');
         setState(() {
@@ -130,6 +136,7 @@ class _DashboardState extends State<Dashboard> {
     }
   }
 
+  /// Builds the active trips card widget
   Widget _buildActiveTripsCard() {
     print('Dashboard: Building Active Trips Card');
     return CustomCard(
@@ -149,6 +156,55 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
+  /// Builds the statistics cards
+  List<Widget> _buildStatisticsCards() {
+    return [
+      CustomCard(
+        icon: Icons.check,
+        title: 'Completed Trips',
+        number: completedTrips.toString(),
+        description: 'Last 90 days',
+      ),
+      CustomCard(
+        icon: Icons.star,
+        title: 'Rating',
+        number: totalRating.toStringAsFixed(1),
+        description: 'Last 90 days',
+      ),
+      CustomCard(
+        icon: Icons.monetization_on,
+        title: 'Total Income',
+        number: r'$' + totalIncome.toStringAsFixed(2),
+        description: 'Last 90 days',
+      ),
+    ];
+  }
+
+  /// Builds the error widget
+  Widget _buildErrorWidget() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text('Failed to load data. Please try again later.'),
+          const SizedBox(height: 10),
+          ElevatedButton(
+            onPressed: () {
+              print('Dashboard: Retry button pressed');
+              setState(() {
+                isLoading = true;
+                hasError = false;
+              });
+              fetchDashboardData();
+              fetchActiveTrips();
+            },
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     print('Dashboard: Building UI');
@@ -165,27 +221,7 @@ class _DashboardState extends State<Dashboard> {
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : hasError
-          ? Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Failed to load data. Please try again later.'),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: () {
-                print('Dashboard: Retry button pressed');
-                setState(() {
-                  isLoading = true;
-                  hasError = false;
-                });
-                fetchDashboardData();
-                fetchActiveTrips();
-              },
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      )
+          ? _buildErrorWidget()
           : Column(
         children: [
           const Padding(
@@ -200,26 +236,7 @@ class _DashboardState extends State<Dashboard> {
           ),
           Expanded(
             child: ListView(
-              children: [
-                CustomCard(
-                  icon: Icons.check,
-                  title: 'Completed Trips',
-                  number: completedTrips.toString(),
-                  description: 'Last 90 days',
-                ),
-                CustomCard(
-                  icon: Icons.star,
-                  title: 'Rating',
-                  number: totalRating.toStringAsFixed(1),
-                  description: 'Last 90 days',
-                ),
-                CustomCard(
-                  icon: Icons.monetization_on,
-                  title: 'Total Income',
-                  number: r'$' + totalIncome.toStringAsFixed(2),
-                  description: 'Last 90 days',
-                ),
-              ],
+              children: _buildStatisticsCards(),
             ),
           ),
           _buildActiveTripsCard(),

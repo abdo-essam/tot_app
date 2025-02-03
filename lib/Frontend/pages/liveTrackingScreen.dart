@@ -6,10 +6,12 @@ import 'package:location/location.dart';
 import 'package:dio/dio.dart';
 import 'package:tot_app/Frontend/styles/globals.dart' as globals;
 
+/// LiveTrackingScreen widget for real-time location tracking between tourist and tour guide
 class LiveTrackingScreen extends StatefulWidget {
-  final String touristId;
-  final String tripId;
-  final String tourGuideId;
+  // Required parameters for tracking
+  final String touristId;    // ID of the tourist
+  final String tripId;       // ID of the current trip
+  final String tourGuideId;  // ID of the tour guide
 
   const LiveTrackingScreen({
     super.key,
@@ -23,29 +25,38 @@ class LiveTrackingScreen extends StatefulWidget {
 }
 
 class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
-  final Location _location = Location();
-  final Dio _dio = Dio();
-  GoogleMapController? _mapController;
-  LatLng? _currentPosition;
-  LatLng? _otherUserPosition;
-  bool _isLoading = true;
-  Set<Marker> _markers = {};
-  StreamSubscription<LocationData>? _locationSubscription;
-  Timer? _locationUpdateTimer;
-  Timer? _fetchLocationTimer;
-  bool _isTourGuide = true;
-  Polyline? _navigationLine;
-  String _currentUserRole = '';
-  String _otherUserRole = '';
+  // Core services
+  final Location _location = Location();  // Location service instance
+  final Dio _dio = Dio();                // HTTP client for API calls
+
+  // Map and location related variables
+  GoogleMapController? _mapController;    // Controller for Google Map
+  LatLng? _currentPosition;              // Current user's position
+  LatLng? _otherUserPosition;            // Other user's position
+  Set<Marker> _markers = {};             // Set of markers on the map
+  Polyline? _navigationLine;             // Line connecting both users
+
+  // State variables
+  bool _isLoading = true;                // Loading state indicator
+  bool _isTourGuide = true;              // Role indicator
+  String _currentUserRole = '';          // Current user's role (Tourist/Guide)
+  String _otherUserRole = '';            // Other user's role
+
+  // Subscriptions and timers for real-time updates
+  StreamSubscription<LocationData>? _locationSubscription;  // Location updates subscription
+  Timer? _locationUpdateTimer;    // Timer for updating server with location
+  Timer? _fetchLocationTimer;     // Timer for fetching other user's location
 
   @override
   void initState() {
     super.initState();
+    // Initialize roles and location tracking
     _isTourGuide = globals.userId.toString() != widget.touristId;
     _setupRoles();
     _initializeLocation();
   }
 
+  /// Sets up user roles based on _isTourGuide flag
   void _setupRoles() {
     if (_isTourGuide) {
       _currentUserRole = 'Tour Guide';
@@ -56,9 +67,10 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
     }
   }
 
+  /// Initializes location services and starts tracking
   Future<void> _initializeLocation() async {
     try {
-      // Check and request permissions
+      // Check and request location permissions
       PermissionStatus permissionStatus = await _location.hasPermission();
       if (permissionStatus == PermissionStatus.denied) {
         permissionStatus = await _location.requestPermission();
@@ -68,7 +80,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
         }
       }
 
-      // Check location service
+      // Verify location services are enabled
       bool serviceEnabled = await _location.serviceEnabled();
       if (!serviceEnabled) {
         serviceEnabled = await _location.requestService();
@@ -78,18 +90,18 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
         }
       }
 
-      // Configure location settings
+      // Configure location settings for high precision tracking
       await _location.changeSettings(
-        accuracy: LocationAccuracy.high,
-        interval: 1000,
-        distanceFilter: 10,
+        accuracy: LocationAccuracy.navigation,  // Highest accuracy
+        interval: 1000,                        // Update every second
+        distanceFilter: 5,                     // Update every 5 meters movement
       );
 
       // Get initial location
       setState(() => _isLoading = true);
-
       final LocationData locationData = await _location.getLocation();
 
+      // Update current position if location data is valid
       if (locationData.latitude != null && locationData.longitude != null) {
         if (mounted) {
           setState(() {
@@ -106,7 +118,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
         return;
       }
 
-      // Start location tracking
+      // Start continuous location tracking
       _startLocationTracking();
       _startOtherUserLocationFetching();
 
@@ -116,7 +128,9 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
     }
   }
 
+  /// Starts continuous location tracking and updates
   void _startLocationTracking() {
+    // Listen to location changes
     _locationSubscription = _location.onLocationChanged.listen(
           (LocationData locationData) {
         if (mounted && locationData.latitude != null && locationData.longitude != null) {
@@ -129,12 +143,14 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
       onError: (e) => _handleError('Location subscription error', e),
     );
 
+    // Start periodic server updates
     _locationUpdateTimer = Timer.periodic(
       const Duration(seconds: 1),
           (_) => _updateServerLocation(),
     );
   }
 
+  /// Starts fetching other user's location periodically
   void _startOtherUserLocationFetching() {
     String userIdToTrack = _isTourGuide ? widget.touristId : widget.tourGuideId;
     _fetchLocationTimer = Timer.periodic(
@@ -143,6 +159,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
     );
   }
 
+  /// Updates server with current location
   Future<void> _updateServerLocation() async {
     if (_currentPosition == null) return;
 
@@ -169,6 +186,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
     }
   }
 
+  /// Fetches other user's location from server
   Future<void> _fetchOtherUserLocation(String userId) async {
     try {
       final response = await _dio.get(
@@ -196,10 +214,12 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
     }
   }
 
+  /// Updates map markers for both users
   void _updateMarkers() {
     if (_currentPosition == null) return;
 
     _markers = {
+      // Current user marker
       Marker(
         markerId: const MarkerId('currentUser'),
         position: _currentPosition!,
@@ -213,6 +233,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
       ),
     };
 
+    // Add other user's marker if available
     if (_otherUserPosition != null) {
       _markers.add(
         Marker(
@@ -230,6 +251,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
     }
   }
 
+  /// Updates the navigation line between users
   void _updateNavigationLine(LatLng start, LatLng end) {
     _navigationLine = Polyline(
       polylineId: const PolylineId('navigation'),
@@ -240,6 +262,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
     );
   }
 
+  /// Builds the legend widget showing user roles
   Widget _buildLegend() {
     return Card(
       elevation: 4,
@@ -290,14 +313,15 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
       ),
       body: Stack(
         children: [
+          // Google Map
           GoogleMap(
             initialCameraPosition: CameraPosition(
-              target: _currentPosition ?? const LatLng(0, 0), // Default position while loading
+              target: _currentPosition ?? const LatLng(0, 0),
               zoom: 15,
             ),
             onMapCreated: (GoogleMapController controller) {
               _mapController = controller;
-              // Center on current location once available
+              // Center map on current location
               if (_currentPosition != null) {
                 controller.animateCamera(
                   CameraUpdate.newLatLng(_currentPosition!),
@@ -311,6 +335,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
             zoomControlsEnabled: true,
             compassEnabled: true,
           ),
+          // Loading indicator
           if (_isLoading)
             Container(
               color: Colors.white,
@@ -318,6 +343,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                 child: CircularProgressIndicator(),
               ),
             ),
+          // Legend
           Positioned(
             top: 16,
             right: 16,
@@ -325,6 +351,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
           ),
         ],
       ),
+      // Floating action buttons for location centering
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
@@ -359,6 +386,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
     );
   }
 
+  /// Handles and logs errors
   void _handleError(String message, dynamic error) {
     if (kDebugMode) {
       print('$message: $error');
@@ -369,6 +397,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
     _showError('$message. Please try again.');
   }
 
+  /// Shows error message to user
   void _showError(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -377,6 +406,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
     }
   }
 
+  /// Cleanup resources on dispose
   @override
   void dispose() {
     _locationSubscription?.cancel();
