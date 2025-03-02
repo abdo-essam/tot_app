@@ -17,9 +17,31 @@ It helps users manage trips, explore locations, and provide feedback.
 - **Frontend**: Flutter (Dart)
 - **Backend**: Node.js, Express.js
 - **Database**: SQLite
-- **State Management**: Provider (if used)
 
 ## 🔧 Installation & Setup
+
+## Project Structure
+
+abdo-essam-tot_app/
+│── README.md                   # Project introduction
+│── analysis_options.yaml        # Dart analysis options
+│── pubspec.yaml                 # Flutter dependencies
+│── android/                     # Android-specific code
+│── ios/                         # iOS-specific code
+│── lib/                         # Flutter app source code
+│   ├── main.dart                # App entry point
+│   ├── screens/                 # UI screens
+│   ├── models/                  # Data models
+│   ├── services/                # Business logic & API calls
+│   ├── utils/                   # Utility functions
+│── assets/                      # Fonts and images
+│── Backend/                     # Node.js backend
+│   ├── index.js                 # Server entry point
+│   ├── db.js                    # Database connection
+│   ├── authMiddleware.js         # Authentication middleware
+│   ├── routes/                   # API endpoints
+│── tot.sql                       # Database schema
+
 
 ### **Frontend (Flutter)**
 1. Install [Flutter](https://flutter.dev/)
