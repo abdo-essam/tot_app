@@ -1,16 +1,29 @@
-# tot_app
+# 🏕️ TOT App
 
-A new Flutter project.
+### A Flutter-based mobile app for trip planning and location management.
 
-## Getting Started
+## 📌 Overview
+TOT App is a cross-platform mobile application built using **Flutter** for the frontend and **Node.js + SQL** for the backend.  
+It helps users manage trips, explore locations, and provide feedback.
 
-This project is a starting point for a Flutter application.
+## 🚀 Features
+- 🔐 **User Authentication** (Register/Login)
+- 📍 **Location-based Services**
+- 🗺️ **Trip Management** (Booking and History)
+- 📝 **User Feedback System**
+- 🌎 **Cross-Platform Support** (Android & iOS)
 
-A few resources to get you started if this is your first Flutter project:
+## 🏗️ Tech Stack
+- **Frontend**: Flutter (Dart)
+- **Backend**: Node.js, Express.js
+- **Database**: SQLite
+- **State Management**: Provider (if used)
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## 🔧 Installation & Setup
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### **Frontend (Flutter)**
+1. Install [Flutter](https://flutter.dev/)
+2. Clone the repository:
+   ```sh
+   git clone https://github.com/your-username/tot_app.git
+   cd tot_app
